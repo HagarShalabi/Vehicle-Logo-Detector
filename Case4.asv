@@ -1,0 +1,76 @@
+I=imread("Case2-Rear2.jpg");
+%%Converts RGB truecolor image to the grayscale image I=(1/3)*I(:,:, 1)+(1/3)*I(:,:, 2)+(1/3)*I(:,:, 3);
+I=rgb2gray(I);
+nexttile; imshow(I)
+title('Grayscale'); 
+%%
+%%Cropped Version
+%%Checking for the logo in the middle: (Best Case)
+%targetSize = [100 100];
+%window = centerCropWindow2d(size(I),targetSize);
+%Test = imcrop(I,window);
+ %imshow(Test)
+ 
+Cropped=imcrop(I, [300 300 330 350]); 
+nexttile; imshow(Cropped)
+title('Cropped');
+
+%%
+% Getting the best looking morphological operator on the image- For testing purposes
+Canny=edge(uint8(medfilt2(I,[11 11])),'canny');
+nexttile;imshow(Canny);
+title('Canny Edge Detection');
+
+SE=strel("disk",5);
+Closed=imclose(Canny,SE);
+nexttile; imshow(Closed);
+title('Closed');
+
+Filled =imfill(Closed,'holes');
+nexttile; imshow(Filled);
+title('Filled');
+
+%%Threshold the image - Getting the binary image 
+B=imbinarize(I); 
+nexttile; imshow(B)
+title('Binary');
+%%
+%%Features get detected via SURF (function works with greyscale images NOT binary images)
+% 1) Reading the images 
+LogoImage = imread('HyundaiTest4.jpg'); 
+LogoImage=im2gray(LogoImage);
+LogoImage=imcomplement(LogoImage);
+
+CarImage = Cropped;
+CarImage=im2gray(CarImage);
+[r, c]=size(LogoImage);
+CarImage = imresize(CarImage,[r c]) ;
+
+%2) Detect interest points
+LogoPoints = detectSURFFeatures(LogoImage);
+CarPoints = detectSURFFeatures(CarImage);
+
+figure; imshow(LogoImage); title('Logo Interest Points'); hold on;
+plot(selectStrongest(LogoPoints, 50));
+figure;
+imshow(CarImage); title('Car Interest Points'); hold on;
+plot(selectStrongest(CarPoints, 150));
+
+%3) Extract interest points
+[lf, LogoPoints] = extractFeatures(LogoImage, LogoPoints);
+[cf, CarPoints] = extractFeatures(CarImage, CarPoints);
+
+%4) Match the interest points
+MatchedPairs = matchFeatures(lf, cf);
+matchedLogoPoints = LogoPoints(MatchedPairs(:, 1), :);
+matchedCarPoints = CarPoints(MatchedPairs(:, 2), :);
+
+%5) Display all the matching points
+figure;
+showMatchedFeatures(LogoImage, CarImage, matchedLogoPoints, ...
+    matchedCarPoints, 'montage');
+title('All matching key points)');
+
+%6) Stating that the brand of the car is Hyundai
+%%If there is matching points within both images, then logo image is vehicle's logo
+text(100,30,strcat('\color{cyan} Brand: Hyundai'))
